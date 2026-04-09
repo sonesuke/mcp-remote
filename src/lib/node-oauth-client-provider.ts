@@ -280,12 +280,20 @@ export class NodeOAuthClientProvider implements OAuthClientProvider {
   }
 
   /**
+   * Returns the per-process filename for the PKCE code verifier.
+   * Using the PID prevents simultaneous instances from overwriting each other's verifier.
+   */
+  private get codeVerifierFilename(): string {
+    return `code_verifier_${process.pid}.txt`
+  }
+
+  /**
    * Saves the PKCE code verifier
    * @param codeVerifier The code verifier to save
    */
   async saveCodeVerifier(codeVerifier: string): Promise<void> {
-    debugLog('Saving code verifier')
-    await writeTextFile(this.serverUrlHash, 'code_verifier.txt', codeVerifier)
+    debugLog('Saving code verifier', { filename: this.codeVerifierFilename })
+    await writeTextFile(this.serverUrlHash, this.codeVerifierFilename, codeVerifier)
   }
 
   /**
@@ -293,8 +301,8 @@ export class NodeOAuthClientProvider implements OAuthClientProvider {
    * @returns The code verifier
    */
   async codeVerifier(): Promise<string> {
-    debugLog('Reading code verifier')
-    const verifier = await readTextFile(this.serverUrlHash, 'code_verifier.txt', 'No code verifier saved for session')
+    debugLog('Reading code verifier', { filename: this.codeVerifierFilename })
+    const verifier = await readTextFile(this.serverUrlHash, this.codeVerifierFilename, 'No code verifier saved for session')
     debugLog('Code verifier found:', !!verifier)
     return verifier
   }
@@ -311,7 +319,7 @@ export class NodeOAuthClientProvider implements OAuthClientProvider {
         await Promise.all([
           deleteConfigFile(this.serverUrlHash, 'client_info.json'),
           deleteConfigFile(this.serverUrlHash, 'tokens.json'),
-          deleteConfigFile(this.serverUrlHash, 'code_verifier.txt'),
+          deleteConfigFile(this.serverUrlHash, this.codeVerifierFilename),
         ])
         this._clientInfo = undefined
         debugLog('All credentials invalidated')
@@ -329,7 +337,7 @@ export class NodeOAuthClientProvider implements OAuthClientProvider {
         break
 
       case 'verifier':
-        await deleteConfigFile(this.serverUrlHash, 'code_verifier.txt')
+        await deleteConfigFile(this.serverUrlHash, this.codeVerifierFilename)
         debugLog('Code verifier invalidated')
         break
 
