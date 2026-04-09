@@ -175,12 +175,12 @@ export function mcpProxy({
         }
       }
       if (downgradeStructuredContent && req.method === 'tools/call' && res.result?.structuredContent !== undefined) {
-        const { structuredContent, content = [], ...restResult } = res.result
+        const { structuredContent, ...restResult } = res.result
         return {
           ...res,
           result: {
             ...restResult,
-            content: [...content, { type: 'text', text: JSON.stringify(structuredContent) }],
+            content: [{ type: 'text', text: JSON.stringify(structuredContent) }],
           },
         }
       }
