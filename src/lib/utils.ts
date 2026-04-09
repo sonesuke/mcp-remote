@@ -132,10 +132,12 @@ export function mcpProxy({
   transportToClient,
   transportToServer,
   ignoredTools = [],
+  downgradeStructuredContent = false,
 }: {
   transportToClient: Transport
   transportToServer: Transport
   ignoredTools?: string[]
+  downgradeStructuredContent?: boolean
 }) {
   let transportToClientClosed = false
   let transportToServerClosed = false
@@ -169,6 +171,16 @@ export function mcpProxy({
           result: {
             ...res.result,
             tools: res.result.tools.filter((tool: any) => shouldIncludeTool(ignoredTools, tool.name)),
+          },
+        }
+      }
+      if (downgradeStructuredContent && req.method === 'tools/call' && res.result?.structuredContent !== undefined) {
+        const { structuredContent, content = [], ...restResult } = res.result
+        return {
+          ...res,
+          result: {
+            ...restResult,
+            content: [...content, { type: 'text', text: JSON.stringify(structuredContent) }],
           },
         }
       }
@@ -853,6 +865,12 @@ export async function parseCommandLineArgs(args: string[], usage: string) {
     j++
   }
 
+  // Parse downgrade-structured-content flag
+  const downgradeStructuredContent = args.includes('--downgrade-structured-content')
+  if (downgradeStructuredContent) {
+    log('Structured content downgrade enabled - structuredContent will be converted to text content')
+  }
+
   // Parse auth timeout
   let authTimeoutMs = 30000 // Default 30 seconds
   const authTimeoutIndex = args.indexOf('--auth-timeout')
@@ -942,6 +960,7 @@ export async function parseCommandLineArgs(args: string[], usage: string) {
     ignoredTools,
     authTimeoutMs,
     serverUrlHash,
+    downgradeStructuredContent,
   }
 }
 
