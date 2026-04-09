@@ -24,6 +24,7 @@
     "mcp-remote-client": "dist/client.js"
   },
   "scripts": {
+    "prepare": "tsup",
     "build": "tsup",
     "build:watch": "tsup --watch",
     "check": "prettier --check . && tsc",
