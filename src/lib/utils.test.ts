@@ -979,6 +979,125 @@ describe('Feature: MCP Proxy', () => {
       }),
     )
   })
+
+  it('Scenario: downgradeStructuredContent replaces content with structuredContent as text', async () => {
+    const mockTransportToClient = {
+      send: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+      start: vi.fn().mockResolvedValue(undefined),
+      onmessage: vi.fn(),
+      onclose: vi.fn(),
+      onerror: vi.fn(),
+    } as unknown as Transport
+
+    const mockTransportToServer = {
+      send: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+      start: vi.fn().mockResolvedValue(undefined),
+      onmessage: vi.fn(),
+      onclose: vi.fn(),
+      onerror: vi.fn(),
+    } as unknown as Transport
+
+    mcpProxy({
+      transportToClient: mockTransportToClient,
+      transportToServer: mockTransportToServer,
+      ignoredTools: [],
+      downgradeStructuredContent: true,
+    })
+
+    // Client sends a tools/call request
+    const toolsCallRequest = {
+      jsonrpc: '2.0' as const,
+      method: 'tools/call',
+      id: '10',
+      params: { name: 'my_tool', arguments: {} },
+    }
+    if (mockTransportToClient.onmessage) {
+      mockTransportToClient.onmessage(toolsCallRequest)
+    }
+
+    // Server responds with structuredContent and existing content
+    const serverResponse = {
+      jsonrpc: '2.0' as const,
+      id: '10',
+      result: {
+        content: [{ type: 'text', text: 'human readable' }],
+        structuredContent: { foo: 'bar', count: 42 },
+      },
+    }
+    if (mockTransportToServer.onmessage) {
+      mockTransportToServer.onmessage(serverResponse)
+    }
+
+    // structuredContent should be replaced into content, original content discarded
+    expect(mockTransportToClient.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: '10',
+        result: {
+          content: [{ type: 'text', text: JSON.stringify({ foo: 'bar', count: 42 }) }],
+        },
+      }),
+    )
+  })
+
+  it('Scenario: downgradeStructuredContent is no-op when structuredContent is absent', async () => {
+    const mockTransportToClient = {
+      send: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+      start: vi.fn().mockResolvedValue(undefined),
+      onmessage: vi.fn(),
+      onclose: vi.fn(),
+      onerror: vi.fn(),
+    } as unknown as Transport
+
+    const mockTransportToServer = {
+      send: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+      start: vi.fn().mockResolvedValue(undefined),
+      onmessage: vi.fn(),
+      onclose: vi.fn(),
+      onerror: vi.fn(),
+    } as unknown as Transport
+
+    mcpProxy({
+      transportToClient: mockTransportToClient,
+      transportToServer: mockTransportToServer,
+      ignoredTools: [],
+      downgradeStructuredContent: true,
+    })
+
+    const toolsCallRequest = {
+      jsonrpc: '2.0' as const,
+      method: 'tools/call',
+      id: '11',
+      params: { name: 'my_tool', arguments: {} },
+    }
+    if (mockTransportToClient.onmessage) {
+      mockTransportToClient.onmessage(toolsCallRequest)
+    }
+
+    const serverResponse = {
+      jsonrpc: '2.0' as const,
+      id: '11',
+      result: {
+        content: [{ type: 'text', text: 'only text' }],
+      },
+    }
+    if (mockTransportToServer.onmessage) {
+      mockTransportToServer.onmessage(serverResponse)
+    }
+
+    // Response should pass through unchanged
+    expect(mockTransportToClient.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: '11',
+        result: {
+          content: [{ type: 'text', text: 'only text' }],
+        },
+      }),
+    )
+  })
 })
 
 describe('setupOAuthCallbackServerWithLongPoll', () => {
